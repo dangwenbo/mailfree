@@ -11,7 +11,7 @@
 📖 **[一键部署指南](docs/yijianbushu.md)** | 🤖 **[Github Action 部署指南](docs/action-deployment.md)** | 📬 **[Resend 发件配置](docs/resend.md)** | 📚 **[API 文档](docs/api.md)**
 
 ## 📸 项目展示
-### 体验地址： https://mailexhibit.dinging.top/
+### 体验地址： https://freemail.cq.de5.net
 
 ### 体验账号： guest
 ### 体验密码： guest
