@@ -157,7 +157,7 @@ export async function verifyMailboxLogin(emailAddress, password, DB) {
 }
 
 /**
- * SHA256哈希函数
+ * SHA256哈希函数（保留用于旧哈希兼容和 JWT 签名）
  */
 async function sha256Hex(text) {
   const encoder = new TextEncoder();
@@ -167,29 +167,80 @@ async function sha256Hex(text) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const HASH_PREFIX = 'pbkdf2:sha256:';
+
 /**
- * 验证密码
- * @param {string} rawPassword - 原始密码
- * @param {string} hashed - 哈希密码
- * @returns {Promise<boolean>} 验证结果
+ * 使用 PBKDF2-SHA256 生成带盐的密码哈希。
+ * 格式: pbkdf2:sha256:{base64_salt}:{base64_hash}
  */
-export async function verifyPassword(rawPassword, hashed) {
-  if (!hashed) return false;
+async function pbkdf2Hash(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    key, 256
+  );
+  const saltB64 = btoa(String.fromCharCode(...salt));
+  const hashB64 = btoa(String.fromCharCode(...new Uint8Array(bits)));
+  return HASH_PREFIX + saltB64 + ':' + hashB64;
+}
+
+/**
+ * 验证密码。支持旧版无盐 SHA-256（检测到后自动迁移到 PBKDF2）。
+ * @param {string} rawPassword - 原始密码
+ * @param {string} stored - 存储的哈希值
+ * @returns {Promise<{valid: boolean, newHash?: string}>}
+ */
+export async function verifyPassword(rawPassword, stored) {
+  if (!stored) return { valid: false };
+
+  // PBKDF2 格式
+  if (stored.startsWith(HASH_PREFIX)) {
+    const parts = stored.slice(HASH_PREFIX.length).split(':');
+    if (parts.length !== 2) return { valid: false };
+    const [saltB64, hashB64] = parts;
+    try {
+      const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+      const expectedHash = new Uint8Array(atob(hashB64).split('').map(c => c.charCodeAt(0)));
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey('raw', encoder.encode(rawPassword), 'PBKDF2', false, ['deriveBits']);
+      const bits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        key, 256
+      );
+      const actualHash = new Uint8Array(bits);
+      if (actualHash.length !== expectedHash.length) return { valid: false };
+      for (let i = 0; i < actualHash.length; i++) {
+        if (actualHash[i] !== expectedHash[i]) return { valid: false };
+      }
+      return { valid: true };
+    } catch (_) {
+      return { valid: false };
+    }
+  }
+
+  // 旧版无盐 SHA-256 — 验证通过后自动迁移
   try {
     const hex = (await sha256Hex(rawPassword)).toLowerCase();
-    return hex === String(hashed || '').toLowerCase();
+    const valid = hex === String(stored || '').toLowerCase();
+    if (valid) {
+      const newHash = await pbkdf2Hash(rawPassword);
+      return { valid: true, newHash };
+    }
+    return { valid: false };
   } catch (_) {
-    return false;
+    return { valid: false };
   }
 }
 
 /**
- * 生成密码哈希
+ * 生成密码哈希（使用 PBKDF2-SHA256 带盐）。
  * @param {string} password - 原始密码
- * @returns {Promise<string>} 哈希后的密码
+ * @returns {Promise<string>} 带格式的哈希字符串
  */
 export async function hashPassword(password) {
-  return await sha256Hex(password);
+  return await pbkdf2Hash(password);
 }
 
 function base64UrlEncode(data) {
@@ -244,12 +295,10 @@ export async function verifyJwtWithCache(JWT_TOKEN, cookieHeader) {
 }
 
 /**
- * 检查超级管理员权限覆盖
- * @param {Request} request - HTTP请求对象
- * @param {string} JWT_TOKEN - JWT密钥令牌
- * @returns {object|null} 超级管理员权限对象
+ * 检查超级管理员权限覆盖（已禁用）。
+ * @returns {null}
  */
-export function checkRootAdminOverride(request, JWT_TOKEN) {
+export function checkRootAdminOverride() {
   return null;
 }
 
@@ -260,7 +309,7 @@ export function checkRootAdminOverride(request, JWT_TOKEN) {
  * @returns {Promise<object|false>} 认证负载对象
  */
 export async function resolveAuthPayload(request, JWT_TOKEN) {
-  return await verifyJwtWithCache(JWT_TOKEN, request.headers.get('Cookie') || '');
+  return await verifyJwtWithCache(JWT_TOKEN, request?.headers?.get('Cookie') || '');
 }
 
 /**

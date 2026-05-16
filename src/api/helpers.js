@@ -4,6 +4,7 @@
  */
 
 import { sha256Hex } from '../utils/common.js';
+import { hashPassword } from '../middleware/auth.js';
 
 /**
  * 从请求中提取 JWT 载荷
@@ -170,4 +171,4 @@ export async function getSentEmailAccess(db, request, options = {}, identifier, 
   return { exists: true, allowed: access.allowed, sent, mailbox: access.mailbox };
 }
 
-export { sha256Hex };
+export { sha256Hex, hashPassword };
