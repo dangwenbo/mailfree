@@ -295,11 +295,23 @@ export async function verifyJwtWithCache(JWT_TOKEN, cookieHeader) {
 }
 
 /**
- * 检查超级管理员权限覆盖（已禁用）。
- * @returns {null}
+ * 检查超级管理员权限覆盖
+ * @param {Request} request - HTTP请求对象
+ * @param {string} JWT_TOKEN - JWT密钥令牌
+ * @returns {object|null} 超级管理员权限对象
  */
-export function checkRootAdminOverride() {
-  return null;
+export function checkRootAdminOverride(request, JWT_TOKEN) {
+  try {
+    if (!JWT_TOKEN) return null;
+    const auth = request.headers.get('Authorization') || request.headers.get('authorization') || '';
+    const xToken = request.headers.get('X-Admin-Token') || request.headers.get('x-admin-token') || '';
+    const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+    if (bearer && bearer === JWT_TOKEN) return { role: 'admin', username: '__root__', userId: 0 };
+    if (xToken && xToken === JWT_TOKEN) return { role: 'admin', username: '__root__', userId: 0 };
+    return null;
+  } catch (_) {
+    return null;
+  }
 }
 
 /**
@@ -309,6 +321,8 @@ export function checkRootAdminOverride() {
  * @returns {Promise<object|false>} 认证负载对象
  */
 export async function resolveAuthPayload(request, JWT_TOKEN) {
+  const root = checkRootAdminOverride(request, JWT_TOKEN);
+  if (root) return root;
   return await verifyJwtWithCache(JWT_TOKEN, request?.headers?.get('Cookie') || '');
 }
 
@@ -327,6 +341,11 @@ export async function authMiddleware(context) {
   }
 
   const JWT_TOKEN = env.JWT_TOKEN || env.JWT_SECRET || '';
+  const root = checkRootAdminOverride(request, JWT_TOKEN);
+  if (root) {
+    context.authPayload = root;
+    return null;
+  }
   const payload = await verifyJwtWithCache(JWT_TOKEN, request.headers.get('Cookie') || '');
   if (!payload) {
     return new Response('Unauthorized', { status: 401 });
