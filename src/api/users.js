@@ -3,7 +3,7 @@
  * @module api/users
  */
 
-import { getJwtPayload, isStrictAdmin, sha256Hex, jsonResponse, errorResponse } from './helpers.js';
+import { getJwtPayload, isStrictAdmin, hashPassword, jsonResponse, errorResponse } from './helpers.js';
 import { initMockUsers, buildMockMailboxes, MOCK_DOMAINS } from './mock.js';
 import {
   listUsersWithCounts,
@@ -154,7 +154,7 @@ export async function handleUsersApi(request, db, url, path, options) {
       const mailboxLimit = Number(body.mailboxLimit || 10);
       const password = String(body.password || '').trim();
       let passwordHash = null;
-      if (password) { passwordHash = await sha256Hex(password); }
+      if (password) { passwordHash = await hashPassword(password); }
       const user = await createUser(db, { username, passwordHash, role, mailboxLimit });
       return Response.json(user);
     } catch (e) { return errorResponse('创建失败: ' + (e?.message || e), 500); }
@@ -170,7 +170,7 @@ export async function handleUsersApi(request, db, url, path, options) {
       if (typeof body.mailboxLimit !== 'undefined') fields.mailbox_limit = Math.max(0, Number(body.mailboxLimit));
       if (typeof body.role === 'string') fields.role = (body.role === 'admin' ? 'admin' : 'user');
       if (typeof body.can_send !== 'undefined') fields.can_send = body.can_send ? 1 : 0;
-      if (typeof body.password === 'string' && body.password) { fields.password_hash = await sha256Hex(String(body.password)); }
+      if (typeof body.password === 'string' && body.password) { fields.password_hash = await hashPassword(String(body.password)); }
       await updateUser(db, id, fields);
       return Response.json({ success: true });
     } catch (e) { return errorResponse('更新失败: ' + (e?.message || e), 500); }
@@ -211,6 +211,9 @@ export async function handleUsersApi(request, db, url, path, options) {
   if (!isMock && request.method === 'GET' && path.startsWith('/api/users/') && path.endsWith('/mailboxes')) {
     const id = Number(path.split('/')[3]);
     if (!id) return errorResponse('无效ID', 400);
+    const payload = getJwtPayload(request, options);
+    const self = Number(payload?.userId || 0) === id;
+    if (!isStrictAdmin(request, options) && !self) return errorResponse('Forbidden', 403);
     try { const list = await getUserMailboxes(db, id); return Response.json(list || []); }
     catch (e) { return errorResponse('查询失败', 500); }
   }

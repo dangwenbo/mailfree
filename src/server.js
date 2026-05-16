@@ -12,6 +12,18 @@ import { handleEmailEvent } from './email/handler.js';
 
 const app = new Hono();
 
+// 全局安全响应头
+app.use('*', async (c, next) => {
+  await next();
+  c.res.headers.set('X-Content-Type-Options', 'nosniff');
+  c.res.headers.set('Referrer-Policy', 'same-origin');
+  c.res.headers.set('X-Frame-Options', 'DENY');
+  c.res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (c.req.url.startsWith('https:')) {
+    c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+});
+
 // 公开认证路由（/api/logout, /api/login）
 app.route('/', authRoutes);
 

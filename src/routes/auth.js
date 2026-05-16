@@ -71,12 +71,18 @@ router.post('/api/login', rateLimiter({ windowMs: 60_000, max: 10 }), async (c) 
     ).bind(name).all();
     if (results?.length) {
       const row = results[0];
-      if (await verifyPassword(password, row.password_hash || '')) {
+      const pwResult = await verifyPassword(password, row.password_hash || '');
+      if (pwResult.valid) {
         const role = (row.role === 'admin') ? 'admin' : 'user';
         const token = await createJwt(JWT_TOKEN, { role, username: name, userId: row.id }, SESSION_EXPIRE_DAYS);
         c.header('Set-Cookie', buildSessionCookie(token, c.req.url, SESSION_EXPIRE_DAYS));
         const canSend = role === 'admin' ? 1 : (row.can_send ? 1 : 0);
         const mailboxLimit = role === 'admin' ? (row.mailbox_limit || 20) : (row.mailbox_limit || 10);
+        // 旧版 SHA-256 哈希自动迁移到 PBKDF2
+        if (pwResult.newHash) {
+          try { await DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(pwResult.newHash, row.id).run(); }
+          catch (_) { /* 迁移失败不影响登录 */ }
+        }
         return c.json({ success: true, role, can_send: canSend, mailbox_limit: mailboxLimit });
       }
     }
