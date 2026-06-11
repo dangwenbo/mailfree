@@ -41,14 +41,14 @@ export async function handleEmailEvent(message, env, ctx) {
     const localPart = (normalizedAddr.split('@')[0] || '').toLowerCase();
 
     const mailboxForwardTo = await getForwardTarget(DB, normalizedAddr);
-    let forwarded = false;
+    let result;
     if (mailboxForwardTo) {
-      forwarded = forwardByMailboxConfig(message, mailboxForwardTo, ctx);
+      result = forwardByMailboxConfig(message, mailboxForwardTo, ctx);
     } else {
-      forwarded = forwardByLocalPart(message, localPart, ctx, env);
+      result = forwardByLocalPart(message, localPart, ctx, env);
     }
-    if (!forwarded) {
-      message.setReject('No forward target configured');
+    if (result.hasTarget && !result.forwarded) {
+      message.setReject('Forward failed');
     }
 
     let textContent = '';
