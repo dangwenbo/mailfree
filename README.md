@@ -221,7 +221,13 @@ wrangler d1 execute TEMP_MAIL_DB --command "SELECT * FROM mailboxes LIMIT 10"
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=idinging/freemail&type=Date)](https://www.star-history.com/#idinging/freemail&Date)
+<a href="https://www.star-history.com/?repos=idinging%2Ffreemail&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=idinging/freemail&type=date&theme=dark&legend=top-left&sealed_token=FzUojQuGdiAUQRRZmcDq3RJT2paNvsRPT5M7pH89byZxdeib7cQ7hmEC5IBnMRiXH26fjzGuZ6bEvpOTgT9kn-2FvpTTRj47r9y-kzpd0PyNRAKH-bSpqw" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=idinging/freemail&type=date&legend=top-left&sealed_token=FzUojQuGdiAUQRRZmcDq3RJT2paNvsRPT5M7pH89byZxdeib7cQ7hmEC5IBnMRiXH26fjzGuZ6bEvpOTgT9kn-2FvpTTRj47r9y-kzpd0PyNRAKH-bSpqw" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=idinging/freemail&type=date&legend=top-left&sealed_token=FzUojQuGdiAUQRRZmcDq3RJT2paNvsRPT5M7pH89byZxdeib7cQ7hmEC5IBnMRiXH26fjzGuZ6bEvpOTgT9kn-2FvpTTRj47r9y-kzpd0PyNRAKH-bSpqw" />
+ </picture>
+</a>
 
 ## 联系方式
 
